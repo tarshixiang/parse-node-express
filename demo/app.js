@@ -4,6 +4,15 @@ var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
+var ParseServer = require('parse-server').ParseServer;
+var ParseDashboard = require('parse-dashboard');
+let Parse = require('parse/node');
+
+
+let mosca = require('mosca');
+let rp = require('request-promise');
+let timers = require('timers');
+
 
 var index = require('./routes/index');
 var users = require('./routes/users');
@@ -21,6 +30,38 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+var api = new ParseServer({
+  databaseURI: 'mongodb://localhost:27017/test', // Connection string for your MongoDB database
+  appId: '123',
+  masterKey: '123456', // Keep this key secret!
+  serverURL: 'http://localhost:1337/parse' // Don't forget to change to https if needed
+});
+
+var dashboard = new ParseDashboard({
+  "apps": [
+    {
+      "serverURL": "http://localhost:1337/parse",
+      "appId": "123",
+      "masterKey": "123456",
+      "appName": "MyApp"
+    },
+  ],
+  "users": [
+    {
+      "user": 'admin',
+      "pass": '123456'
+      }
+    ]
+});
+Parse.initialize('123', '', '123456');
+Parse.serverURL = 'http://localhost:1337/parse';
+// Serve the Parse API on the /parse URL prefix
+app.use('/parse', api);
+app.use('/dashboard', dashboard);
+app.listen(1337, function() {
+  console.log('parse-server-example running on port 1337.');
+});
 
 app.use('/', index);
 app.use('/users', users);
