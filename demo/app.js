@@ -1,23 +1,24 @@
-var express = require('express');
-var path = require('path');
-var favicon = require('serve-favicon');
-var logger = require('morgan');
-var cookieParser = require('cookie-parser');
-var bodyParser = require('body-parser');
-var ParseServer = require('parse-server').ParseServer;
-var ParseDashboard = require('parse-dashboard');
+let express = require('express');
+let path = require('path');
+let favicon = require('serve-favicon');
+let logger = require('morgan');
+let cookieParser = require('cookie-parser');
+let bodyParser = require('body-parser');
+let ParseServer = require('parse-server').ParseServer;
+let ParseDashboard = require('parse-dashboard');
 let Parse = require('parse/node');
 
+const https = require('https');
+const nodemailer = require('nodemailer');
 
-let mosca = require('mosca');
 let rp = require('request-promise');
 let timers = require('timers');
 
 
-var index = require('./routes/index');
-var users = require('./routes/users');
+let index = require('./routes/index');
+let users = require('./routes/users');
 
-var app = express();
+let app = express();
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -31,14 +32,14 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-var api = new ParseServer({
+let api = new ParseServer({
   databaseURI: 'mongodb://localhost:27017/test', // Connection string for your MongoDB database
   appId: '123',
   masterKey: '123456', // Keep this key secret!
   serverURL: 'http://localhost:1337/parse' // Don't forget to change to https if needed
 });
 
-var dashboard = new ParseDashboard({
+let dashboard = new ParseDashboard({
   "apps": [
     {
       "serverURL": "http://localhost:1337/parse",
@@ -68,7 +69,7 @@ app.use('/users', users);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
-  var err = new Error('Not Found');
+  let err = new Error('Not Found');
   err.status = 404;
   next(err);
 });
@@ -84,4 +85,64 @@ app.use(function(err, req, res, next) {
   res.render('error');
 });
 
+let serverDog = function(cb) {
+  https.get('https://aapi.xiaoiron.com/v1', (res) => {
+    cb(null, res.statusCode)
+  }).on('error', (e) => {
+    cb(e, null)
+  });
+}
+
+let send = function() {
+  const transporter = nodemailer.createTransport({
+    service: 'qq',
+    port: 465, // SMTP 端口
+    secureConnection: true, // 使用 SSL
+    auth: {
+        user: '785263824@qq.com',
+        //这里密码不是qq密码，是你设置的smtp密码
+        pass: 'vugsdxerpkdybefd'
+    }
+  });
+  const mailOptions = {
+      from: '785263824@qq.com', // 发件地址
+      to: '785263824@qq.com', // 收件列表
+      subject: '小铁蹦掉了啊', // 标题
+      //text和html两者只支持一种
+      text: '崩瞎卡拉卡！！！！', // 标题
+      html: '<b>崩瞎卡拉卡！！！！</b>' // html 内容
+  };
+  // send mail with defined transport object
+  transporter.sendMail(mailOptions, function(error, info){
+      if(error){
+          return console.log(error);
+      }
+      console.log('Message sent: ' + info.response);
+      var Dog = Parse.Object.extend("Dog");
+      var dog = new Dog();
+      dog.set("desc", '小铁蹦掉了');
+      dog.save(null, {
+        success: function(dog) {
+          console.log('New object created with objectId: ' + dog.id);
+        },
+        error: function(dog, error) {
+          console.log('Failed to create new object, with error code: ' + error.message);
+        }
+      });
+  });
+}
+let sendMssage = function() {
+  let i = 1;
+  let timer = timers.setInterval(function(){
+    i++;
+    serverDog(function(err, data) {
+      if(err){
+        send();
+        timers.clearInterval(timer);
+        return ;
+      }
+    });
+  }, 1000*60*30);
+}
+sendMssage();
 module.exports = app;
